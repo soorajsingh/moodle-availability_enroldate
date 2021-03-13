@@ -47,6 +47,15 @@ class frontend extends \core_availability\frontend {
      */
     const DATE_SELECTOR_SUPPORTED = false;
 
+    /**
+     * Gets a list of string identifiers (in the plugin's language file) that
+     * are required in JavaScript for this plugin. The default returns nothing.
+     *
+     * You do not need to include the 'title' string (which is used by core) as
+     * this is automatically added.
+     *
+     * @return array Array of required string identifiers
+     */
     protected function get_javascript_strings() {
         return array('ajaxerror', 'direction_before', 'enroldate_after', 'enroldate_before',
                 'direction_label');
@@ -84,6 +93,16 @@ class frontend extends \core_availability\frontend {
                 'hour' => $wrongfields['hours'], 'minute' => $wrongfields['minutes']);
     }
 
+    /**
+     * Gets additional parameters for the plugin's initInner function.
+     *
+     * Default returns no parameters.
+     *
+     * @param \stdClass $course Course object
+     * @param \cm_info $cm Course-module currently being edited (null if none)
+     * @param \section_info $section Section currently being edited (null if none)
+     * @return array Array of parameters for the JavaScript function
+     */
     protected function get_javascript_init_params($course, \cm_info $cm = null,
             \section_info $section = null) {
         global $CFG, $OUTPUT;

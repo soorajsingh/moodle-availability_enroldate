@@ -88,6 +88,11 @@ class condition extends \core_availability\condition {
         }
     }
 
+    /**
+     * Saves tree data back to a structure object.
+     *
+     * @return \stdClass Structure object (ready to be made into JSON format)
+     */
     public function save() {
         return (object)array('type' => 'date',
                 'd' => $this->direction, 't' => $this->time);
@@ -107,10 +112,39 @@ class condition extends \core_availability\condition {
         return (object)array('type' => 'date', 'd' => $direction, 't' => (int)$time);
     }
 
+    /**
+     * Determines whether a particular item is currently available
+     * according to this availability condition.
+     *
+     * If implementations require a course or modinfo, they should use
+     * the get methods in $info.
+     *
+     * The $not option is potentially confusing. This option always indicates
+     * the 'real' value of NOT. For example, a condition inside a 'NOT AND'
+     * group will get this called with $not = true, but if you put another
+     * 'NOT OR' group inside the first group, then a condition inside that will
+     * be called with $not = false. We need to use the real values, rather than
+     * the more natural use of the current value at this point inside the tree,
+     * so that the information displayed to users makes sense.
+     *
+     * @param bool $not Set true if we are inverting the condition
+     * @param info $info Item we're checking
+     * @param bool $grabthelot Performance hint: if true, caches information
+     *   required for all course-modules, to make the front page and similar
+     *   pages work more quickly (works only for current user)
+     * @param int $userid User ID to check availability for
+     * @return bool True if available
+     */
     public function is_available($not, \core_availability\info $info, $grabthelot, $userid) {
         return $this->is_available_for_all($not);
     }
 
+    /**
+     * Determines the condition for the availability of module
+     *
+     * @param bool false if condition is not invert
+     * @return bool true if its available to access
+     */
     public function is_available_for_all($not = false) {
         // Check condition.
         $now = self::get_time();
@@ -149,10 +183,35 @@ class condition extends \core_availability\condition {
         }
     }
 
+    /**
+     * Obtains a string describing this restriction (whether or not
+     * it actually applies). Used to obtain information that is displayed to
+     * students if the activity is not available to them, and for staff to see
+     * what conditions are.
+     *
+     * @param bool $full Set true if this is the 'full information' view
+     * @param bool $not Set true if we are inverting the condition
+     * @param info $info Item we're checking
+     * @return string Information string (for admin) about all restrictions on
+     *   this item
+     */
     public function get_description($full, $not, \core_availability\info $info) {
         return $this->get_either_description($not, false);
     }
 
+    /**
+     * Obtains a string describing this restriction (whether or not
+     * it actually applies). Used to obtain information that is displayed to
+     * students if the activity is not available to them, and for staff to see
+     * what conditions are. and description is not dependent to other
+     * condition
+     *
+     * @param bool $full Set true if this is the 'full information' view
+     * @param bool $not Set true if we are inverting the condition
+     * @param info $info Item we're checking
+     * @return string Information string (for admin) about all restrictions on
+     *   this item
+     */
     public function get_standalone_description(
             $full, $not, \core_availability\info $info) {
         return $this->get_either_description($not, true);
@@ -180,6 +239,12 @@ class condition extends \core_availability\condition {
         }
     }
 
+    /**
+     * Obtains a representation of the options of this condition as a string,
+     * for debugging.
+     *
+     * @return string Text representation of parameters
+     */
     protected function get_debug_string() {
         return $this->direction . ' ' . gmdate('Y-m-d H:i:s', $this->time);
     }
@@ -218,13 +283,6 @@ class condition extends \core_availability\condition {
      * @return string Date
      */
     protected function show_time($time, $dateonly, $until = false) {
-        // For 'until' dates that are at midnight, e.g. midnight 5 March, it
-        // is better to word the text as 'until end 4 March'.
-        $daybefore = false;
-        if ($until && $dateonly) {
-            $daybefore = true;
-            $time = strtotime('-1 day', $time);
-        }
         return userdate($time,
                 get_string($dateonly ? 'strftimedate' : 'strftimedatetime', 'langconfig'));
     }
@@ -240,6 +298,18 @@ class condition extends \core_availability\condition {
         return usergetmidnight($time) == $time;
     }
 
+    /**
+     * Obtains a string describing this restriction (whether or not
+     * it actually applies). Used to obtain information that is displayed to
+     * students if the activity is not available to them, and for staff to see
+     * what conditions are.
+     *
+     * @param int $restoreid the id of restoring data
+     * @param int $courseid course id
+     * @param base_logger $logger log object
+     * @param string $name name value in the restore record
+     * @return bool true if restored and get the offset
+     */
     public function update_after_restore(
             $restoreid, $courseid, \base_logger $logger, $name) {
         // Update the date, if restoring with changed date.
