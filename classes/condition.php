@@ -59,7 +59,6 @@ class condition extends \core_availability\condition {
      * @throws \coding_exception If invalid data structure.
      */
     public function __construct($structure) {
-        global $CFG, $USER, $COURSE, $DB;
         // Get direction.
         if (isset($structure->d) && in_array($structure->d,
                 array(self::ENROLDATE_AFTER, self::ENROLDATE_BEFORE))) {
@@ -68,18 +67,6 @@ class condition extends \core_availability\condition {
             throw new \coding_exception('Missing or invalid ->d for date condition');
         }
 
-        $coursecontext = \context_course::instance($COURSE->id);
-
-        if (is_enrolled($coursecontext)) {
-            $sql = "SELECT max(ue.timecreated) as enroldate
-                      FROM {user_enrolments} ue
-                      JOIN {enrol} e ON (e.id = ue.enrolid AND e.courseid = :courseid)
-                      JOIN {user} u ON u.id = ue.userid
-                     WHERE ue.userid = :userid AND u.deleted = 0";
-            $params = array('userid' => $USER->id, 'courseid' => $coursecontext->instanceid);
-            $enroldate = $DB->get_field_sql($sql, $params, IGNORE_MISSING);
-            $this->enroltime = $enroldate;
-        }
         // Get time.
         if (isset($structure->t) && is_int($structure->t)) {
             $this->time = $structure->t;
@@ -136,18 +123,10 @@ class condition extends \core_availability\condition {
      * @return bool True if available
      */
     public function is_available($not, \core_availability\info $info, $grabthelot, $userid) {
-        return $this->is_available_for_all($not);
-    }
+        if (!$this->enroltime) {
+            $this->set_enrol_time($info);
+        }
 
-    /**
-     * Determines the condition for the availability of module
-     *
-     * @param bool false if condition is not invert
-     * @return bool true if its available to access
-     */
-    public function is_available_for_all($not = false) {
-        // Check condition.
-        $now = self::get_time();
         switch ($this->direction) {
             case self::ENROLDATE_AFTER:
                 $allow = $this->enroltime >= $this->time;
@@ -158,6 +137,7 @@ class condition extends \core_availability\condition {
             default:
                 throw new \coding_exception('Unexpected direction');
         }
+
         if ($not) {
             $allow = !$allow;
         }
@@ -386,6 +366,25 @@ class condition extends \core_availability\condition {
         // Ensure course cache is cleared if required.
         if ($anychanged) {
             rebuild_course_cache($courseid, true);
+        }
+    }
+
+    private function set_enrol_time(\core_availability\info $info): void
+    {
+        global $USER, $DB;
+
+        $coursecontext = \context_course::instance($info->get_course()->id);
+
+        if (is_enrolled($coursecontext)) {
+            $sql = "SELECT max(ue.timecreated) as enroldate
+                FROM {user_enrolments} ue
+                JOIN {enrol} e ON (e.id = ue.enrolid AND e.courseid = :courseid)
+                JOIN {user} u ON u.id = ue.userid
+                WHERE ue.userid = :userid AND u.deleted = 0";
+
+            $params = ['userid' => $USER->id, 'courseid' => $coursecontext->instanceid];
+
+            $this->enroltime = $DB->get_field_sql($sql, $params, IGNORE_MISSING);
         }
     }
 }
